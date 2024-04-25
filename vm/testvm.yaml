@@ -15,7 +15,7 @@ metadata:
         }
       ]
   name: centos-stream8
-  namespace: openshift-virtualization-os-images
+  namespace: test-vm
   finalizers:
     - kubevirt.io/virtualMachineControllerFinalize
   labels:
