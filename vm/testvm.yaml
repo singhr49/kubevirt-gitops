@@ -15,7 +15,7 @@ metadata:
         }
       ]
   name: centos-stream8
-  namespace: test-vm
+  namespace: vmargocd
   finalizers:
     - kubevirt.io/virtualMachineControllerFinalize
   labels:
