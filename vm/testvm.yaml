@@ -1,86 +1,95 @@
-apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
-kind: Deployment
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
 metadata:
-  name: httpd-frontend
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1alpha3
+    vm.kubevirt.io/validations: |
+      [
+        {
+          "name": "minimal-required-memory",
+          "path": "jsonpath::.spec.domain.resources.requests.memory",
+          "rule": "integer",
+          "message": "This VM requires more memory.",
+          "min": 1610612736
+        }
+      ]
+  name: centos-stream8
+  namespace: test-vm
+  finalizers:
+    - kubevirt.io/virtualMachineControllerFinalize
   labels:
-    app: httpd-frontend
+    app: centos-stream8
+    vm.kubevirt.io/template: centos-stream8-server-small
+    vm.kubevirt.io/template.namespace: openshift
+    vm.kubevirt.io/template.revision: '1'
+    vm.kubevirt.io/template.version: v0.25.0
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpd-frontend
-  strategy:
-    type: RollingUpdate
-    rollingParams:
-      updatePeriodSeconds: 1 
-      intervalSeconds: 1 
-      timeoutSeconds: 120 
-      maxSurge: "20%" 
-      maxUnavailable: "10%" 
-      pre: {} 
-      post: {}
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        creationTimestamp: null
+        name: centos-stream8
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: centos-stream8
+          namespace: openshift-virtualization-os-images
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
   template:
     metadata:
+      annotations:
+        vm.kubevirt.io/flavor: small
+        vm.kubevirt.io/os: centos-stream8
+        vm.kubevirt.io/workload: server
+      creationTimestamp: null
       labels:
-        app: httpd-frontend
+        kubevirt.io/domain: centos-stream8
+        kubevirt.io/size: small
     spec:
-      containers:
-      - image: example-registry-quay-quay-enterprise.apps.ocp-spoke1.lab.local/quayadmin/testrepo/rhel8/httpd-24:latest
-        imagePullPolicy: Always
-        name: httpd-rhel7
-          #Limits:
-          #cpu:     2
-          #memory:  4Gi
-          #Requests:
-          #cpu:      2
-          #memory:   2Gi
-        ports:
-        - containerPort: 8080
-          name: http-port
-        - containerPort: 8443
-          name: https-port
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: http-port
-  labels:
-    app: httpd-frontend
-spec:
-  ports:
-    - port: 8080
-      name: http-port
-      protocol: TCP
-      targetPort: 8080
-  selector:
-    app: httpd-frontend
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: https-port
-  labels:
-    app: httpd-frontend
-spec:
-  ports:
-    - port: 8443
-      name: https-port
-      protocol: TCP
-      targetPort: 8443
-  selector:
-    app: httpd-frontend
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  labels:
-    app: httpd-frontend
-  managedFields:
-  name: http-port
-spec:
-  port:
-    targetPort: http-port
-  to:
-    kind: Service
-    name: http-port
-    weight: 100
+      domain:
+        cpu:
+          cores: 1
+          sockets: 1
+          threads: 1
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - macAddress: '02:f9:cb:00:00:0c'
+              masquerade: {}
+              model: virtio
+              name: default
+          networkInterfaceMultiqueue: true
+          rng: {}
+        machine:
+          type: pc-q35-rhel9.2.0
+        resources:
+          requests:
+            memory: 2Gi
+      evictionStrategy: LiveMigrate
+      networks:
+        - name: default
+          pod: {}
+      terminationGracePeriodSeconds: 180
+      volumes:
+        - dataVolume:
+            name: centos-stream8
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              user: centos
+              password: gks2-le88-rc15
+              chpasswd: { expire: False }
+          name: cloudinitdisk
