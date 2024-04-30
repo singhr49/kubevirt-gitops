@@ -1,21 +1,8 @@
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  annotations:
-    kubevirt.io/latest-observed-api-version: v1
-    kubevirt.io/storage-observed-api-version: v1alpha3
-    vm.kubevirt.io/validations: |
-      [
-        {
-          "name": "minimal-required-memory",
-          "path": "jsonpath::.spec.domain.resources.requests.memory",
-          "rule": "integer",
-          "message": "This VM requires more memory.",
-          "min": 1610612736
-        }
-      ]
   name: centos-stream8
-  namespace: vmargocd
+  namespace: my-argocd-project
   finalizers:
     - kubevirt.io/virtualMachineControllerFinalize
   labels:
